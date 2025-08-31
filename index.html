@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LLM in African Languages - Research Stats</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- PapaParse -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+</head>
+<body class="bg-light">
+
+<div class="container py-4">
+  <!-- Filters -->
+  <div class="row mb-3">
+    <div class="col-md-4 mb-2">
+      <select class="form-select" id="filter-country" aria-label="Filter by country">
+        <option value="">All Countries</option>
+      </select>
+    </div>
+    <div class="col-md-4 mb-2">
+      <select class="form-select" id="filter-language" aria-label="Filter by language">
+        <option value="">All Languages</option>
+      </select>
+    </div>
+    <div class="col-md-4 mb-2">
+      <select class="form-select" id="filter-year" aria-label="Filter by year">
+        <option value="">All Years</option>
+      </select>
+    </div>
+  </div>
+  <h1 class="mb-4 text-center">LLM Research in African Languages</h1>
+
+  <!-- Summary Cards -->
+  <div class="row text-center mb-4" id="summary-cards">
+    <div class="col-md-4">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5>Total Publications</h5>
+          <h2 id="total-publications">0</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5>Languages Covered</h5>
+          <h2 id="total-languages">0</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5>Countries Covered</h5>
+          <h2 id="total-countries">0</h2>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trend Chart -->
+  <div class="card mb-4 shadow-sm">
+    <div class="card-body">
+      <h5 class="card-title">Publications Over Time</h5>
+      <canvas id="trendChart" height="100"></canvas>
+    </div>
+  </div>
+
+  <!-- Data Table -->
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h5 class="card-title">Publication Details</h5>
+      <table class="table table-striped" id="data-table">
+        <thead>
+          <tr>
+            <th scope="col">Country</th>
+            <th scope="col">Language</th>
+            <th scope="col">Year</th>
+            <th scope="col">Publications</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Load CSV data
+  let allData = [];
+  let filteredData = [];
+
+  Papa.parse('data/llm_stats.csv', {
+    download: true,
+    header: true,
+    complete: function(results) {
+      // Filter out rows missing key fields
+      allData = results.data.filter(row =>
+        row.country && row.language && row.year && row.publications && !isNaN(parseInt(row.publications))
+      );
+      populateFilters(allData);
+      applyFilters();
+      // Add event listeners for filters
+      document.getElementById('filter-country').addEventListener('change', applyFilters);
+      document.getElementById('filter-language').addEventListener('change', applyFilters);
+      document.getElementById('filter-year').addEventListener('change', applyFilters);
+    }
+  });
+
+  function populateFilters(data) {
+    const countrySet = new Set();
+    const languageSet = new Set();
+    const yearSet = new Set();
+    data.forEach(row => {
+      countrySet.add(row.country);
+      languageSet.add(row.language);
+      yearSet.add(row.year);
+    });
+    const countrySelect = document.getElementById('filter-country');
+    const languageSelect = document.getElementById('filter-language');
+    const yearSelect = document.getElementById('filter-year');
+    // Remove old options except the first
+    countrySelect.length = 1;
+    languageSelect.length = 1;
+    yearSelect.length = 1;
+    Array.from(countrySet).sort().forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c;
+      opt.textContent = c;
+      countrySelect.appendChild(opt);
+    });
+    Array.from(languageSet).sort().forEach(l => {
+      const opt = document.createElement('option');
+      opt.value = l;
+      opt.textContent = l;
+      languageSelect.appendChild(opt);
+    });
+    Array.from(yearSet).sort().forEach(y => {
+      const opt = document.createElement('option');
+      opt.value = y;
+      opt.textContent = y;
+      yearSelect.appendChild(opt);
+    });
+  }
+
+  function applyFilters() {
+    const country = document.getElementById('filter-country').value;
+    const language = document.getElementById('filter-language').value;
+    const year = document.getElementById('filter-year').value;
+    filteredData = allData.filter(row =>
+      (country === '' || row.country === country) &&
+      (language === '' || row.language === language) &&
+      (year === '' || row.year === year)
+    );
+    updateSummary(filteredData);
+    renderTable(filteredData);
+    renderChart(filteredData);
+  }
+
+  function updateSummary(data) {
+    document.getElementById('total-publications').textContent =
+      data.reduce((sum, row) => sum + (parseInt(row.publications) || 0), 0);
+
+    document.getElementById('total-languages').textContent =
+      new Set(data.map(row => row.language)).size;
+
+    document.getElementById('total-countries').textContent =
+      new Set(data.map(row => row.country)).size;
+  }
+
+  function renderTable(data) {
+    const tbody = document.querySelector('#data-table tbody');
+    // Clear previous rows to avoid duplicates
+    tbody.innerHTML = '';
+    if (data.length === 0) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td colspan="4" class="text-center">No data available</td>`;
+      tbody.appendChild(tr);
+      return;
+    }
+    data.forEach(row => {
+      const tr = document.createElement('tr');
+      // Escape HTML to prevent XSS (if data is not trusted)
+      const escape = str => String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+      tr.innerHTML = `<td>${escape(row.country)}</td>
+                      <td>${escape(row.language)}</td>
+                      <td>${escape(row.year)}</td>
+                      <td>${escape(row.publications)}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  let chartInstance = null;
+  function renderChart(data) {
+    const ctx = document.getElementById('trendChart').getContext('2d');
+    // Sort years numerically
+    const years = [...new Set(data.map(d => d.year))].sort((a, b) => parseInt(a) - parseInt(b));
+    const counts = years.map(y =>
+      data.filter(d => d.year == y)
+          .reduce((sum, row) => sum + (parseInt(row.publications) || 0), 0)
+    );
+
+    // Destroy previous chart instance if exists
+    if (chartInstance) {
+      chartInstance.destroy();
+    }
+
+    chartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: years,
+        datasets: [{
+          label: 'Publications',
+          data: counts,
+          borderColor: 'blue',
+          backgroundColor: 'rgba(0,0,255,0.1)',
+          fill: true,
+          tension: 0.2
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: true }
+        }
+      }
+    });
+  }
+</script>
+
+</body>
+</html>
