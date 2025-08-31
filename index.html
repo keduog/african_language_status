@@ -80,7 +80,7 @@
             <th scope="col">Country</th>
             <th scope="col">Language</th>
             <th scope="col">Year</th>
-            <th scope="col">Publications</th>
+            <th scope="col">Paper Title</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -100,7 +100,7 @@
     complete: function(results) {
       // Filter out rows missing key fields
       allData = results.data.filter(row =>
-        row.country && row.language && row.year && row.publications && !isNaN(parseInt(row.publications))
+        row.country && row.language && row.year && row.paper_title
       );
       populateFilters(allData);
       applyFilters();
@@ -162,8 +162,7 @@
   }
 
   function updateSummary(data) {
-    document.getElementById('total-publications').textContent =
-      data.reduce((sum, row) => sum + (parseInt(row.publications) || 0), 0);
+    document.getElementById('total-publications').textContent = data.length;
 
     document.getElementById('total-languages').textContent =
       new Set(data.map(row => row.language)).size;
@@ -189,7 +188,7 @@
       tr.innerHTML = `<td>${escape(row.country)}</td>
                       <td>${escape(row.language)}</td>
                       <td>${escape(row.year)}</td>
-                      <td>${escape(row.publications)}</td>`;
+                      <td>${escape(row.paper_title)}</td>`;
       tbody.appendChild(tr);
     });
   }
@@ -200,8 +199,7 @@
     // Sort years numerically
     const years = [...new Set(data.map(d => d.year))].sort((a, b) => parseInt(a) - parseInt(b));
     const counts = years.map(y =>
-      data.filter(d => d.year == y)
-          .reduce((sum, row) => sum + (parseInt(row.publications) || 0), 0)
+      data.filter(d => d.year == y).length
     );
 
     // Destroy previous chart instance if exists
